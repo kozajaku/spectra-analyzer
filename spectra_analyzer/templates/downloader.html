@@ -1,0 +1,278 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Spectra downloader</title>
+    <style type="text/css">
+        .hidden {
+            display: none;
+        }
+
+        .progress {
+        }
+
+        .fail {
+            color: red;
+        }
+
+        .success {
+            color: green;
+        }
+    </style>
+    <script type="text/javascript" src="//code.jquery.com/jquery-3.1.1.min.js"></script>
+    <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
+    <script type="text/javascript" charset="utf-8">
+        $(document).ready(function () {
+            //setup namespace for socketio
+            var namespace = "/downloader";
+            //connect to the socketio server
+            var socket = io.connect(location.protocol + "//" + document.domain + ":" + location.port + namespace);
+            //setup socket events
+            var parseSuccess = true;
+            var spectraList;
+
+            function showParseResult() {
+                if (parseSuccess) {
+                    $('.parse-fail').hide();
+                    $('.parse-success').show();
+                } else {
+                    $('.parse-fail').show();
+                    $('.parse-success').hide();
+                }
+            }
+
+            function votableSet(set) {
+                if (set) {
+                    $("#vot-selected").removeClass("hidden");
+                    $("#vot-unselected").addClass("hidden");
+                } else {
+                    $("#vot-unselected").removeClass("hidden");
+                    $("#vot-selected").addClass("hidden");
+                }
+            }
+
+            function showLinkInputType() {
+                $('#vot-input-link').removeClass("hidden");
+                $('#vot-input-upload').addClass("hidden");
+                $('#vot-input-direct').addClass("hidden");
+            }
+
+            function showUploadInputType() {
+                $('#vot-input-link').addClass("hidden");
+                $('#vot-input-upload').removeClass("hidden");
+                $('#vot-input-direct').addClass("hidden");
+            }
+
+            function showDirectInputType() {
+                $('#vot-input-link').addClass("hidden");
+                $('#vot-input-upload').addClass("hidden");
+                $('#vot-input-direct').removeClass("hidden");
+            }
+
+            function showProgress() {
+                $('.progress').removeClass("hidden");
+                //disable buttons
+                $('.continue-btn').prop("disabled", true);
+            }
+
+            function hideProgress() {
+                $('.progress').addClass("hidden");
+                //enable buttons
+                $('.continue-btn').prop("disabled", false);
+            }
+
+            function sendVotableText(text) {
+                //show progress bar
+                showProgress();
+                socket.emit("votable_text", text);
+            }
+
+            function sendVotableUrl(url) {
+                //show progress bar
+                showProgress();
+                socket.emit("votable_url", url);
+            }
+
+            //add votable input type change listeners
+            $('input[type=radio][name=vot-input-type]').change(function () {
+                if (this.value == 'link') {
+                    showLinkInputType();
+                }
+                else if (this.value == 'upload') {
+                    showUploadInputType();
+                } else if (this.value == 'direct') {
+                    showDirectInputType();
+                }
+            });
+
+            //add listener on url-process button click
+            $('#url-process').click(function () {
+                var url = $('#ssap-url').val();
+                sendVotableUrl(url);
+            });
+
+            //add listener for file-upload button click
+            $('#file-upload').click(function () {
+                var files = $('#vot-file')[0].files;
+                if (files.length == 0) {
+                    alert("Select VOTABLE file first!")
+                } else {
+                    var file = files[0];
+                    var reader = new FileReader();
+                    reader.onload = function (e) {
+                        var result = e.target.result;
+                        sendVotableText(result);
+                    };
+                    reader.readAsText(file);
+                }
+            });
+            //add listener for text area
+            $('#direct-process').click(function () {
+                var content = $('#ssap-textarea').val();
+                sendVotableText(content);
+            });
+            //add listener for back buttons
+            $('.back-btn').click(function () {
+                votableSet(false)
+            });
+
+            //register socketio events
+            socket.on("votable_parsed", function (response) {
+                //render result table
+                if (response['success']) {
+                    parseSuccess = true;
+                    if (response['link_known']) {
+                        var link = response['link'];
+                        $('#resource-url').html(
+                            $('<a>', {"href": link}).html(link)
+                        );
+                    } else {
+                        $('#resource-url').html("unknown");
+                    }
+                    $('#record-count').html(response['record_count']);
+                    $('#datalink-available').html(response['datalink_available']);
+                    var $queryStatus = $('#query_status');
+                    $queryStatus.html(response['query_status']);
+                    if (response['query_status'] == 'OK'){
+                        $queryStatus.removeClass('fail').addClass('success');
+                    } else {
+                        $queryStatus.removeClass('success').addClass('fail');
+                    }
+                    spectraList = response['spectra'];
+                    //todo datalink
+                } else {
+                    parseSuccess = false;
+                    if (response['link_known']) {
+                        var link = response['link'];
+                        $('#resource-url-fail').html(
+                            $('<a>', {"href": link}).html(link)
+                        );
+                    } else {
+                        $('#resource-url-fail').html("unknown");
+                    }
+                    $('#error-message').html(response['exception']);
+                }
+                hideProgress();
+                showParseResult();
+                votableSet(true);
+            });
+
+            //select first radio button - some browser caches the state
+            $('input[type=radio][name=vot-input-type][value=link]').prop('checked', true);
+            hideProgress();//just to be sure
+        });
+    </script>
+
+</head>
+<body>
+<noscript>
+    <div class="nojs">This application does not work without JavaScript. Please turn your JavaScript on.</div>
+</noscript>
+<h1>Spectra downloader</h1>
+<div id="vot-unselected">
+    <div class="frame" id="vot-input-type">
+        <h2>SSAP VOTABLE source</h2>
+        <p>Select the input method of SSAP VOTABLE.</p>
+        <form action="javascript:void(0);">
+            <input type="radio" name="vot-input-type" value="link"> Download VOTABLE from URL<br>
+            <input type="radio" name="vot-input-type" value="upload"> Upload VOTABLE file<br>
+            <input type="radio" name="vot-input-type" value="direct"> Direct VOTABLE input
+        </form>
+    </div>
+    <div class="frame" id="vot-input-link">
+        <h2>Download VOTABLE from URL</h2>
+        <p>Type in URL to SSAP service endpoint with query parameters.</p>
+        <form action="javascript:void(0);">
+            <label for="ssap-url">Resource URL:</label><br>
+            <input type="text" size="110" id="ssap-url" placeholder="Resource URL"><br>
+            <button class="continue-btn" id="url-process">Process</button>
+        </form>
+    </div>
+    <div class="frame hidden" id="vot-input-upload">
+        <h2>Upload VOTABLE file</h2>
+        <p>Upload file containing VOTABLE received from SSAP query.</p>
+        <form action="javascript:void(0);">
+            <input type="file" id="vot-file"><br>
+            <button class="continue-btn" id="file-upload">Upload file</button>
+        </form>
+    </div>
+    <div class="frame hidden" id="vot-input-direct">
+        <h2>Direct VOTABLE input</h2>
+        <p>Type VOTABLE directly into the text input.</p>
+        <form action="javascript:void(0);">
+            <label for="ssap-textarea">VOTABLE content:</label><br>
+            <textarea id="ssap-textarea" rows="20" cols="110" placeholder="VOTABLE XML input"></textarea><br>
+            <button class="continue-btn" id="direct-process">Process</button>
+        </form>
+    </div>
+    <img class="progress hidden"
+         src={{ url_for('static', filename = 'images/progress.gif') }}>
+</div>
+<div id="vot-selected" class="hidden">
+    <div class="parse-fail">
+        <div class="frame">
+            <h2>Parsing results</h2>
+            <table>
+                <tr>
+                    <td>Status</td>
+                    <td class="fail">Failed</td>
+                </tr>
+                <tr>
+                    <td>Resource URL</td>
+                    <td id="resource-url-fail"></td>
+                </tr>
+                <tr>
+                    <td>Message</td>
+                    <td id="error-message"></td>
+                </tr>
+            </table>
+            <button class="back-btn">Back to VOTABLE input</button>
+        </div>
+    </div>
+    <div class="parse-success">
+        <div class="frame">
+            <h2>Parsing results</h2>
+            <table>
+                <tr>
+                    <td>Status</td>
+                    <td id="query_status"></td>
+                </tr>
+                <tr>
+                    <td>Resource URL</td>
+                    <td id="resource-url"></td>
+                </tr>
+                <tr>
+                    <td>Record count</td>
+                    <td id="record-count"></td>
+                </tr>
+                <tr>
+                    <td>DataLink available</td>
+                    <td id="datalink-available"></td>
+                </tr>
+            </table>
+            <button class="back-btn">Back to VOTABLE input</button>
+        </div>
+    </div>
+</div>
+</body>
+</html>
