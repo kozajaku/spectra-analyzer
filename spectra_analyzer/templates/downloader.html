@@ -18,10 +18,12 @@
 
         .fail {
             color: red;
+            font-weight: bold;
         }
 
         .success {
             color: green;
+            font-weight: bold;
         }
 
         select[name=spectra] {
@@ -38,7 +40,9 @@
             var socket = io.connect(location.protocol + "//" + document.domain + ":" + location.port + namespace);
             //setup socket events
             var parseSuccess = true;
+            var datalinkAvailable;
             var spectraList;
+            var downloadIndex = 0;
 
             function showParseResult() {
                 if (parseSuccess) {
@@ -121,7 +125,7 @@
                 var $form = $('#datalink-form');
                 var $checkbox = $('<input>', {'type': 'checkbox', 'name': 'use-datalink'}).prop('checked', true);
                 $checkbox.change(function () {
-                    if ($(this).prop('checked')){
+                    if ($(this).prop('checked')) {
                         $form.find('input[type=text]').prop('disabled', false);
                         $form.find('select').prop('disabled', false);
                     } else {
@@ -154,6 +158,53 @@
                 }
                 $('.datalink-available').show();
 
+            }
+
+            function downloadSpectra() {
+                //get selected spectra ids
+                var spectraIds = [];
+                var $spectra = $('select[name=spectra]');
+                $spectra.find('option:selected').each(function () {
+                    spectraIds.push($(this).val());
+                });
+                if (spectraIds.length == 0) {
+                    alert("You must select at least one spectrum to download");
+                    return;
+                }
+                var message = {"spectra": spectraIds};
+                //get datalink params
+                if (datalinkAvailable &&
+                    $('input[type=checkbox][name=use-datalink]').prop('checked')) {
+                    message['use-datalink'] = true;
+                    var datalink = {};
+                    var $form = $('#datalink-form');
+                    var appendParam = function () {
+                        datalink[$(this).prop('name')] = $(this).val();
+                    };
+                    $form.find('input[type=text]').each(appendParam);
+                    $form.find('select').each(appendParam);
+                    message['datalink'] = datalink;
+                } else {
+                    message['use-datalink'] = false;
+                }
+                //get target directory
+                message['directory'] = $('#directory').val();
+                //prepare lines in a table
+                downloadIndex = 0;
+                $('#download-log-body').html('');
+                //emit message
+                socket.emit('download_spectra', message);
+//                window.history.pushState(null, "Downloading", "/downloading")
+            }
+
+            function setView(id){
+                if (id == 1){
+                    $('.view2').addClass('hidden');
+                    $('.view1').removeClass('hidden');
+                } else if (id == 2){
+                    $('.view1').addClass('hidden');
+                    $('.view2').removeClass('hidden');
+                }
             }
 
             //add votable input type change listeners
@@ -198,7 +249,11 @@
             $('.back-btn').click(function () {
                 votableSet(false)
             });
-
+            //add listener for download button
+            $('.download-btn').click(function () {
+                downloadSpectra();
+                setView(2);
+            });
             //register socketio events
             socket.on("votable_parsed", function (response) {
                 //render result table
@@ -224,10 +279,13 @@
                     spectraList = response['spectra'];
                     renderSpectraList();
                     if (response['datalink_available']) {
+                        datalinkAvailable = true;
                         renderDataLink(response['datalink']);
                     } else {
+                        datalinkAvailable = false;
                         $('.datalink-available').hide();
                     }
+                    $('#directory').val(response['directory']);
                 } else {
                     parseSuccess = false;
                     if (response['link_known']) {
@@ -245,6 +303,36 @@
                 votableSet(true);
             });
 
+            socket.on("spectrum_downloaded", function(response){
+                var $logBody = $('#download-log-body');
+                var $name = $('<td>').html(response['file_name']);
+                var $downloadLink = $('<td>').append($('<a>', {'href': response['url']}).html('link'));
+                var $state;
+                var $problem;
+                if (response.success){
+                    $state = $('<td>').addClass('success').html("SUCCESS");
+                    $problem = $('<td>');
+                } else {
+                    $state = $('<td>').addClass('fail').html("FAILED");
+                    $problem = $('<td>').html(response['exception']);
+                }
+                console.log('appending');
+                $logBody.append($('<tr>').append($name).append($downloadLink).append($state).append($problem));
+            });
+
+            socket.on("spectra_downloaded", function (success) {
+                if (success) {
+                    $('#download-status').html('All spectra successfully downloaded').addClass('success');
+                } else {
+                    $('#download-status').html('At least one spectrum was not downloaded').addClass('fail');
+                }
+                $('.download-progress').hide();
+            });
+
+            socket.on('disconnect', function () {
+                alert("Disconnected from the server. Please refresh the page.");
+            });
+
             //select first radio button - some browser caches the state
             $('input[type=radio][name=vot-input-type][value=link]').prop('checked', true);
             hideProgress();//just to be sure
@@ -259,112 +347,132 @@
     </div>
 </noscript>
 <h1>Spectra downloader</h1>
-<div id="vot-unselected">
-    <div class="frame" id="vot-input-type">
-        <h2>SSAP VOTABLE source</h2>
-        <p>Select the input method of SSAP VOTABLE.</p>
-        <form action="javascript:void(0);">
-            <input type="radio" name="vot-input-type" value="link"> Download VOTABLE from URL<br>
-            <input type="radio" name="vot-input-type" value="upload"> Upload VOTABLE file<br>
-            <input type="radio" name="vot-input-type" value="direct"> Direct VOTABLE input
-        </form>
+<div class="view1">
+    <div id="vot-unselected">
+        <div class="frame" id="vot-input-type">
+            <h2>SSAP VOTABLE source</h2>
+            <p>Select the input method of SSAP VOTABLE.</p>
+            <form action="javascript:void(0);">
+                <input type="radio" name="vot-input-type" value="link"> Download VOTABLE from URL<br>
+                <input type="radio" name="vot-input-type" value="upload"> Upload VOTABLE file<br>
+                <input type="radio" name="vot-input-type" value="direct"> Direct VOTABLE input
+            </form>
+        </div>
+        <div class="frame" id="vot-input-link">
+            <h2>Download VOTABLE from URL</h2>
+            <p>Type in URL to SSAP service endpoint with query parameters.</p>
+            <form action="javascript:void(0);">
+                <label for="ssap-url">Resource URL:</label><br>
+                <input type="text" size="110" id="ssap-url" placeholder="Resource URL"><br>
+                <button class="continue-btn" id="url-process">Process</button>
+            </form>
+        </div>
+        <div class="frame hidden" id="vot-input-upload">
+            <h2>Upload VOTABLE file</h2>
+            <p>Upload a file containing VOTABLE received from SSAP query.</p>
+            <form action="javascript:void(0);">
+                <input type="file" id="vot-file"><br>
+                <button class="continue-btn" id="file-upload">Upload file</button>
+            </form>
+        </div>
+        <div class="frame hidden" id="vot-input-direct">
+            <h2>Direct VOTABLE input</h2>
+            <p>Type VOTABLE directly into the text input.</p>
+            <form action="javascript:void(0);">
+                <label for="ssap-textarea">VOTABLE content:</label><br>
+                <textarea id="ssap-textarea" rows="20" cols="110" placeholder="VOTABLE XML input"></textarea><br>
+                <button class="continue-btn" id="direct-process">Process</button>
+            </form>
+        </div>
+        <img class="progress hidden"
+             src={{ url_for('static', filename = 'images/progress.gif') }}>
     </div>
-    <div class="frame" id="vot-input-link">
-        <h2>Download VOTABLE from URL</h2>
-        <p>Type in URL to SSAP service endpoint with query parameters.</p>
-        <form action="javascript:void(0);">
-            <label for="ssap-url">Resource URL:</label><br>
-            <input type="text" size="110" id="ssap-url" placeholder="Resource URL"><br>
-            <button class="continue-btn" id="url-process">Process</button>
-        </form>
+    <div id="vot-selected" class="hidden">
+        <div class="frame parse-fail">
+            <h2>Parsing results</h2>
+            <table>
+                <tr>
+                    <td>Status</td>
+                    <td class="fail">Failed</td>
+                </tr>
+                <tr>
+                    <td>Resource URL</td>
+                    <td id="resource-url-fail"></td>
+                </tr>
+                <tr>
+                    <td>Message</td>
+                    <td id="error-message"></td>
+                </tr>
+            </table>
+            <button class="back-btn">Back to VOTABLE input</button>
+        </div>
+        <div class="frame parse-success">
+            <h2>Parsing results</h2>
+            <table>
+                <tr>
+                    <td>Status</td>
+                    <td id="query_status"></td>
+                </tr>
+                <tr>
+                    <td>Resource URL</td>
+                    <td id="resource-url"></td>
+                </tr>
+                <tr>
+                    <td>Record count</td>
+                    <td id="record-count"></td>
+                </tr>
+                <tr>
+                    <td>DataLink available</td>
+                    <td id="datalink-available"></td>
+                </tr>
+            </table>
+            <button class="back-btn">Back to VOTABLE input</button>
+        </div>
+        <div class="frame parse-success">
+            <h2>Spectra selection list</h2>
+            <p>Select which spectra you want to download. You can select
+                multiple spectra but you have to choose at least one.</p>
+            <form action="javascript:void(0);">
+                <select name="spectra" multiple>
+                </select>
+            </form>
+        </div>
+        <div class="frame parse-success datalink-available">
+            <h2>DataLink protocol options</h2>
+            <p>DataLink protocol is available. You can choose if you want to
+                use it and if so you can choose DataLink options.</p>
+            <form action="javascript:void(0);" id="datalink-form">
+            </form>
+        </div>
+        <div class="frame parse-success">
+            <h2>Target directory</h2>
+            <p>Enter the target directory for spectra downloading.</p>
+            <label for="directory">Directory:</label><br>
+            <input type="text" id="directory" size="110" placeholder="Directory">
+        </div>
+        <div class="parse-success actions">
+            <button class="download-btn">Start downloading</button>
+            <button class="back-btn">Back to VOTABLE input</button>
+        </div>
     </div>
-    <div class="frame hidden" id="vot-input-upload">
-        <h2>Upload VOTABLE file</h2>
-        <p>Upload a file containing VOTABLE received from SSAP query.</p>
-        <form action="javascript:void(0);">
-            <input type="file" id="vot-file"><br>
-            <button class="continue-btn" id="file-upload">Upload file</button>
-        </form>
-    </div>
-    <div class="frame hidden" id="vot-input-direct">
-        <h2>Direct VOTABLE input</h2>
-        <p>Type VOTABLE directly into the text input.</p>
-        <form action="javascript:void(0);">
-            <label for="ssap-textarea">VOTABLE content:</label><br>
-            <textarea id="ssap-textarea" rows="20" cols="110" placeholder="VOTABLE XML input"></textarea><br>
-            <button class="continue-btn" id="direct-process">Process</button>
-        </form>
-    </div>
-    <img class="progress hidden"
-         src={{ url_for('static', filename = 'images/progress.gif') }}>
 </div>
-<div id="vot-selected" class="hidden">
-    <div class="frame parse-fail">
-        <h2>Parsing results</h2>
-        <table>
-            <tr>
-                <td>Status</td>
-                <td class="fail">Failed</td>
-            </tr>
-            <tr>
-                <td>Resource URL</td>
-                <td id="resource-url-fail"></td>
-            </tr>
-            <tr>
-                <td>Message</td>
-                <td id="error-message"></td>
-            </tr>
-        </table>
-        <button class="back-btn">Back to VOTABLE input</button>
-    </div>
-    <div class="frame parse-success">
-        <h2>Parsing results</h2>
-        <table>
-            <tr>
-                <td>Status</td>
-                <td id="query_status"></td>
-            </tr>
-            <tr>
-                <td>Resource URL</td>
-                <td id="resource-url"></td>
-            </tr>
-            <tr>
-                <td>Record count</td>
-                <td id="record-count"></td>
-            </tr>
-            <tr>
-                <td>DataLink available</td>
-                <td id="datalink-available"></td>
-            </tr>
-        </table>
-        <button class="back-btn">Back to VOTABLE input</button>
-    </div>
-    <div class="frame parse-success">
-        <h2>Spectra selection list</h2>
-        <p>Select which spectra you want to download. You can select
-            multiple spectra but you have to choose at least one.</p>
-        <form action="javascript:void(0);">
-            <select name="spectra" multiple>
-            </select>
-        </form>
-    </div>
-    <div class="frame parse-success datalink-available">
-        <h2>DataLink protocol options</h2>
-        <p>DataLink protocol is available. You can choose if you want to
-            use it and if so you can choose DataLink options.</p>
-        <form action="javascript:void(0);" id="datalink-form">
-        </form>
-    </div>
-    <div class="frame parse-success">
-        <h2>Target directory</h2>
-        <p>Enter the target directory for spectra downloading.</p>
-        <label for="directory">Directory:</label><br>
-        <input type="text" id="directory" size="110" placeholder="Directory">
-    </div>
-    <div class="parse-success actions">
-        <button class="download-btn">Start downloading</button>
-        <button class="back-btn">Back to VOTABLE input</button>
-    </div>
+<div class="view2 hidden">
+    <h2>Spectra downloading</h2>
+    <h3 id="download-status">Downloading in progress&hellip;</h3>
+    <table class="download-log">
+        <thead>
+        <tr>
+            <th>Spectrum file name</th>
+            <th>Download link</th>
+            <th>Download state</th>
+            <th>Problem message</th>
+        </tr>
+        </thead>
+        <tbody id="download-log-body">
+        </tbody>
+    </table>
+    <img class="download-progress"
+         src={{ url_for('static', filename = 'images/progress.gif') }}>
 </div>
 </body>
 </html>

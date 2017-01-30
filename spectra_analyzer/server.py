@@ -2,6 +2,9 @@ from flask import Flask, render_template, session, request, redirect, url_for
 from flask_socketio import SocketIO, emit, join_room, leave_room, \
     close_room, rooms, disconnect
 from spectra_downloader import SpectraDownloader
+import eventlet
+
+DEFAULT_DIRECTORY = "/tmp/spectra"
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'  # todo change
@@ -36,7 +39,7 @@ def page_not_found(error):
 @socketio.on("votable_text", namespace="/downloader")
 def votable_text(message):
     """
-    This method is called when socketio event comes with tag votable_text.
+    This function is called when socketio event comes with tag votable_text.
     This event is triggered by client when he has votable data and he sends
     them to the server for parsing.
     :param message: Message containing votable text.
@@ -47,7 +50,7 @@ def votable_text(message):
 @socketio.on("votable_url", namespace="/downloader")
 def votable_url(url):
     """
-    This method is called when socketio event comes when client obtains
+    This function is called when socketio event comes when client obtains
     url to SSAP service endpoint.
     :param url: Url address to SSAP service endpoint including query parameters.
     """
@@ -75,6 +78,7 @@ def process_vot(url=None, votable=None):
             "success": True,
             "link_known": url is not None,
             "link": "unknown" if url is None else url,
+            "directory": session["directory"],
             "query_status": parsed.query_status,
             "record_count": len(parsed.rows),
             "datalink_available": parsed.datalink_available
@@ -112,98 +116,94 @@ def process_vot(url=None, votable=None):
     emit("votable_parsed", response, namespace="/downloader")  # context is still available
 
 
-def background_thread(sid):
-    """Example of how to send server generated events to clients."""
-    print(sid)
-
-    def every_client():
-        count = 0
-        while True:
-            socketio.sleep(10)
-            count += 1
-            print("emit")
-            socketio.emit('my_response',
-                          {'data': 'Server generated event', 'count': count}, namespace="/test",
-                          room=sid)
-
-    return every_client
-
-
-@socketio.on('my_event', namespace='/test')
-def test_message(message):
-    session['receive_count'] = session.get('receive_count', 0) + 1
-    emit('my_response',
-         {'data': message['data'], 'count': session['receive_count']})
-
-
-@socketio.on('my_broadcast_event', namespace='/test')
-def test_broadcast_message(message):
-    session['receive_count'] = session.get('receive_count', 0) + 1
-    emit('my_response',
-         {'data': message['data'], 'count': session['receive_count']},
-         broadcast=True)
-
-
-@socketio.on('join', namespace='/test')
-def join(message):
-    join_room(message['room'])
-    session['receive_count'] = session.get('receive_count', 0) + 1
-    emit('my_response',
-         {'data': 'In rooms: ' + ', '.join(rooms()),
-          'count': session['receive_count']})
+@socketio.on("download_spectra", namespace="/downloader")
+def download_spectra(message):
+    """
+    This function is invoked when client collects all necessary information about
+    spectra download from user and when the downloading itself should be initiated.
+    :param message: Message from the client. It contains selected spectra IDs to be downloaded,
+    target directory and in case of DataLink protocol availability - if the protocol
+    should be used and what options should be applied.
+    """
+    # obtain downloader from the session
+    spectra_downloader = session.get("downloader")
+    if spectra_downloader is None:
+        return redirect(url_for('downloader'))
+    # fetch information from message
+    spectra_ids = message.get('spectra')
+    directory = message.get('directory')
+    use_datalink = message.get('use-datalink')
+    if spectra_ids is None or directory is None or use_datalink is None:
+        # invalid message
+        return redirect(url_for('downloader'))
+    # save directory into session
+    session["directory"] = directory
+    spectra = list(map(lambda i: spectra_downloader.parsed_ssap.rows[int(i)], spectra_ids))
+    if use_datalink:
+        datalink = message.get('datalink')
+        if datalink is None:
+            return redirect(url_for('downloader'))
+        socketio.start_background_task(spectra_downloader.download_datalink, spectra, datalink, directory,
+                                       progress_callback=download_progress(request.sid),
+                                       done_callback=download_finished(request.sid), async=False)
+    else:
+        socketio.start_background_task(spectra_downloader.download_direct, spectra, directory,
+                                       progress_callback=download_progress(request.sid),
+                                       done_callback=download_finished(request.sid), async=False)
 
 
-@socketio.on('leave', namespace='/test')
-def leave(message):
-    leave_room(message['room'])
-    session['receive_count'] = session.get('receive_count', 0) + 1
-    emit('my_response',
-         {'data': 'In rooms: ' + ', '.join(rooms()),
-          'count': session['receive_count']})
+def download_progress(sid):
+    """
+    This function serves as a factory for progress callbacks. These callbacks
+    are created when clients initiates spectra downloading and they want to be
+    informed about progress.
+    :param sid: Client's socketio connection identifier.
+    :return: Callback method taking argument by the spectra-downloader specification.
+    """
+
+    def callback(result):
+        message = dict()
+        message["file_name"] = result.name
+        message["url"] = result.url
+        message["success"] = result.success
+        if not result.success:
+            message["exception"] = str(result.exception)
+        socketio.emit("spectrum_downloaded", message, namespace="/downloader", room=sid)
+        socketio.sleep()  # this is necessary to force flush message
+
+    return callback
 
 
-@socketio.on('close_room', namespace='/test')
-def close(message):
-    session['receive_count'] = session.get('receive_count', 0) + 1
-    emit('my_response', {'data': 'Room ' + message['room'] + ' is closing.',
-                         'count': session['receive_count']},
-         room=message['room'])
-    close_room(message['room'])
+def download_finished(sid):
+    """
+    This function serves as a factory for done callbacks. These callbacks are
+    used to signalize client that the spectra downloading process has finished.
+    :param sid: Client's socketio connection identifier.
+    :return: Callback method taking one boolean argument signalizing success.
+    """
+
+    def callback(success):
+        socketio.emit("spectra_downloaded", success, namespace="/downloader", room=sid)
+
+    return callback
 
 
-@socketio.on('my_room_event', namespace='/test')
-def send_room_message(message):
-    session['receive_count'] = session.get('receive_count', 0) + 1
-    emit('my_response',
-         {'data': message['data'], 'count': session['receive_count']},
-         room=message['room'])
+@socketio.on('connect', namespace='/downloader')
+def connect():
+    """
+    This method is called whenever new socketio connection with server from client is initiated.
+    """
+    print("Client connected: {}".format(request.sid))
+    directory = session.get("directory")
+    if directory is None:
+        session["directory"] = DEFAULT_DIRECTORY
 
 
-@socketio.on('disconnect_request', namespace='/test')
-def disconnect_request():
-    session['receive_count'] = session.get('receive_count', 0) + 1
-    emit('my_response',
-         {'data': 'Disconnected!', 'count': session['receive_count']})
-    disconnect()
-
-
-@socketio.on('my_ping', namespace='/test')
-def ping_pong():
-    emit('my_pong')
-
-
-@socketio.on('connect', namespace='/test')
-def test_connect():
-    global thread
-    if thread is None:
-        thread = socketio.start_background_task(target=background_thread(request.sid))
-    emit('my_response', {'data': 'Connected', 'count': 0})
-
-
-@socketio.on('disconnect', namespace='/test')
-def test_disconnect():
-    print('Client disconnected', request.sid)
+@socketio.on('disconnect', namespace='/downloader')
+def disconnect():
+    """This method is called whenever the socketio connection with the server is terminated by the client."""
+    print("Client disconnected: {}".format(request.sid))
 
 
 if __name__ == "__main__":
-    socketio.run(app, debug=True)
+    socketio.run(app, debug=False)
