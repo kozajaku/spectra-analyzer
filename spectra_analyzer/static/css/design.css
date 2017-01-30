@@ -1,0 +1,25 @@
+.hidden {
+    display: none;
+}
+
+.nojs {
+    padding: 5px;
+    border: 3px solid red;
+}
+
+.progress {
+}
+
+.fail {
+    color: red;
+    font-weight: bold;
+}
+
+.success {
+    color: green;
+    font-weight: bold;
+}
+
+select[name=spectra] {
+    min-width: 200px;
+}

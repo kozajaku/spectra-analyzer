@@ -3,33 +3,7 @@
 <head>
     <meta charset="utf-8">
     <title>Spectra downloader</title>
-    <style type="text/css">
-        .hidden {
-            display: none;
-        }
-
-        .nojs {
-            padding: 5px;
-            border: 3px solid red;
-        }
-
-        .progress {
-        }
-
-        .fail {
-            color: red;
-            font-weight: bold;
-        }
-
-        .success {
-            color: green;
-            font-weight: bold;
-        }
-
-        select[name=spectra] {
-            min-width: 200px;
-        }
-    </style>
+    <link rel="stylesheet" href="{{url_for('static', filename = 'css/design.css')}}">
     <script type="text/javascript" src="//code.jquery.com/jquery-3.1.1.min.js"></script>
     <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
     <script type="text/javascript" charset="utf-8">
@@ -197,11 +171,11 @@
 //                window.history.pushState(null, "Downloading", "/downloading")
             }
 
-            function setView(id){
-                if (id == 1){
+            function setView(id) {
+                if (id == 1) {
                     $('.view2').addClass('hidden');
                     $('.view1').removeClass('hidden');
-                } else if (id == 2){
+                } else if (id == 2) {
                     $('.view1').addClass('hidden');
                     $('.view2').removeClass('hidden');
                 }
@@ -303,13 +277,13 @@
                 votableSet(true);
             });
 
-            socket.on("spectrum_downloaded", function(response){
+            socket.on("spectrum_downloaded", function (response) {
                 var $logBody = $('#download-log-body');
                 var $name = $('<td>').html(response['file_name']);
                 var $downloadLink = $('<td>').append($('<a>', {'href': response['url']}).html('link'));
                 var $state;
                 var $problem;
-                if (response.success){
+                if (response.success) {
                     $state = $('<td>').addClass('success').html("SUCCESS");
                     $problem = $('<td>');
                 } else {
