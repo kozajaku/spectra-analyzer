@@ -8,6 +8,11 @@
             display: none;
         }
 
+        .nojs {
+            padding: 5px;
+            border: 3px solid red;
+        }
+
         .progress {
         }
 
@@ -17,6 +22,10 @@
 
         .success {
             color: green;
+        }
+
+        select[name=spectra] {
+            min-width: 200px;
         }
     </style>
     <script type="text/javascript" src="//code.jquery.com/jquery-3.1.1.min.js"></script>
@@ -93,6 +102,60 @@
                 socket.emit("votable_url", url);
             }
 
+            function renderSpectraList() {
+                var $select = $('select[name=spectra]');
+                $select.html('');
+                var $option;
+                for (var i = 0; i < spectraList.length; i++) {
+                    $option = $('<option>', {'value': spectraList[i][0]})
+                        .html(spectraList[i][1]);
+                    if (i == 0) {
+                        $option.prop('selected', true);
+                    }
+                    $select.append($option);
+                }
+                $select.prop('size', spectraList.length > 20 ? 20 : spectraList.length);
+            }
+
+            function renderDataLink(datalink) {
+                var $form = $('#datalink-form');
+                var $checkbox = $('<input>', {'type': 'checkbox', 'name': 'use-datalink'}).prop('checked', true);
+                $checkbox.change(function () {
+                    if ($(this).prop('checked')){
+                        $form.find('input[type=text]').prop('disabled', false);
+                        $form.find('select').prop('disabled', false);
+                    } else {
+                        $form.find('input[type=text]').prop('disabled', true);
+                        $form.find('select').prop('disabled', true);
+                    }
+                });
+                $form.html('');
+                $form.append($checkbox);
+                $form.append(' Use DataLink protocol<br>');
+                for (var i = 0; i < datalink.length; i++) {
+                    var param = datalink[i];
+                    $form.append('<label>' + param['name'] + ':</label><br>');
+                    if (param['select']) {
+                        var $select = $('<select>', {'name': param['name']});
+                        var $option = $('<option>', {'value': ''}).html('Nothing selected');
+                        $select.append($option);
+                        for (var j = 0; j < param.options.length; j++) {
+                            var option = param['options'][j];
+                            $option = $('<option>', {'value': option['value']})
+                                .html(option['name']);
+                            $select.append($option);
+                        }
+                        $form.append($select);
+                    } else {
+                        $form.append($('<input>',
+                            {'type': 'text', 'name': param['name']}));
+                    }
+                    $form.append('<br>');
+                }
+                $('.datalink-available').show();
+
+            }
+
             //add votable input type change listeners
             $('input[type=radio][name=vot-input-type]').change(function () {
                 if (this.value == 'link') {
@@ -153,13 +216,18 @@
                     $('#datalink-available').html(response['datalink_available']);
                     var $queryStatus = $('#query_status');
                     $queryStatus.html(response['query_status']);
-                    if (response['query_status'] == 'OK'){
+                    if (response['query_status'] == 'OK') {
                         $queryStatus.removeClass('fail').addClass('success');
                     } else {
                         $queryStatus.removeClass('success').addClass('fail');
                     }
                     spectraList = response['spectra'];
-                    //todo datalink
+                    renderSpectraList();
+                    if (response['datalink_available']) {
+                        renderDataLink(response['datalink']);
+                    } else {
+                        $('.datalink-available').hide();
+                    }
                 } else {
                     parseSuccess = false;
                     if (response['link_known']) {
@@ -186,7 +254,9 @@
 </head>
 <body>
 <noscript>
-    <div class="nojs">This application does not work without JavaScript. Please turn your JavaScript on.</div>
+    <div class="nojs">This application does not work without JavaScript. Please turn your JavaScript on
+        and refresh the page.
+    </div>
 </noscript>
 <h1>Spectra downloader</h1>
 <div id="vot-unselected">
@@ -210,7 +280,7 @@
     </div>
     <div class="frame hidden" id="vot-input-upload">
         <h2>Upload VOTABLE file</h2>
-        <p>Upload file containing VOTABLE received from SSAP query.</p>
+        <p>Upload a file containing VOTABLE received from SSAP query.</p>
         <form action="javascript:void(0);">
             <input type="file" id="vot-file"><br>
             <button class="continue-btn" id="file-upload">Upload file</button>
@@ -229,49 +299,71 @@
          src={{ url_for('static', filename = 'images/progress.gif') }}>
 </div>
 <div id="vot-selected" class="hidden">
-    <div class="parse-fail">
-        <div class="frame">
-            <h2>Parsing results</h2>
-            <table>
-                <tr>
-                    <td>Status</td>
-                    <td class="fail">Failed</td>
-                </tr>
-                <tr>
-                    <td>Resource URL</td>
-                    <td id="resource-url-fail"></td>
-                </tr>
-                <tr>
-                    <td>Message</td>
-                    <td id="error-message"></td>
-                </tr>
-            </table>
-            <button class="back-btn">Back to VOTABLE input</button>
-        </div>
+    <div class="frame parse-fail">
+        <h2>Parsing results</h2>
+        <table>
+            <tr>
+                <td>Status</td>
+                <td class="fail">Failed</td>
+            </tr>
+            <tr>
+                <td>Resource URL</td>
+                <td id="resource-url-fail"></td>
+            </tr>
+            <tr>
+                <td>Message</td>
+                <td id="error-message"></td>
+            </tr>
+        </table>
+        <button class="back-btn">Back to VOTABLE input</button>
     </div>
-    <div class="parse-success">
-        <div class="frame">
-            <h2>Parsing results</h2>
-            <table>
-                <tr>
-                    <td>Status</td>
-                    <td id="query_status"></td>
-                </tr>
-                <tr>
-                    <td>Resource URL</td>
-                    <td id="resource-url"></td>
-                </tr>
-                <tr>
-                    <td>Record count</td>
-                    <td id="record-count"></td>
-                </tr>
-                <tr>
-                    <td>DataLink available</td>
-                    <td id="datalink-available"></td>
-                </tr>
-            </table>
-            <button class="back-btn">Back to VOTABLE input</button>
-        </div>
+    <div class="frame parse-success">
+        <h2>Parsing results</h2>
+        <table>
+            <tr>
+                <td>Status</td>
+                <td id="query_status"></td>
+            </tr>
+            <tr>
+                <td>Resource URL</td>
+                <td id="resource-url"></td>
+            </tr>
+            <tr>
+                <td>Record count</td>
+                <td id="record-count"></td>
+            </tr>
+            <tr>
+                <td>DataLink available</td>
+                <td id="datalink-available"></td>
+            </tr>
+        </table>
+        <button class="back-btn">Back to VOTABLE input</button>
+    </div>
+    <div class="frame parse-success">
+        <h2>Spectra selection list</h2>
+        <p>Select which spectra you want to download. You can select
+            multiple spectra but you have to choose at least one.</p>
+        <form action="javascript:void(0);">
+            <select name="spectra" multiple>
+            </select>
+        </form>
+    </div>
+    <div class="frame parse-success datalink-available">
+        <h2>DataLink protocol options</h2>
+        <p>DataLink protocol is available. You can choose if you want to
+            use it and if so you can choose DataLink options.</p>
+        <form action="javascript:void(0);" id="datalink-form">
+        </form>
+    </div>
+    <div class="frame parse-success">
+        <h2>Target directory</h2>
+        <p>Enter the target directory for spectra downloading.</p>
+        <label for="directory">Directory:</label><br>
+        <input type="text" id="directory" size="110" placeholder="Directory">
+    </div>
+    <div class="parse-success actions">
+        <button class="download-btn">Start downloading</button>
+        <button class="back-btn">Back to VOTABLE input</button>
     </div>
 </div>
 </body>

@@ -83,6 +83,23 @@ def process_vot(url=None, votable=None):
         spectra = [(idx, parsed.get_refname(spectrum)) for idx, spectrum in enumerate(parsed.rows)]
         response["spectra"] = spectra
         # add DataLink specification if any
+        if parsed.datalink_available:
+            datalink = list()
+            for param in parsed.datalink_input_params:
+                if param.id_param:
+                    continue
+                if len(param.options) == 0:
+                    tmp = {"name": param.name, "select": False}
+                else:
+                    tmp = {"name": param.name, "select": True}
+                    options = list()
+                    for option in param.options:
+                        options.append({"name": option.name, "value": option.value})
+                    tmp["options"] = options
+                datalink.append(tmp)
+            response["datalink"] = datalink
+
+        # save downloader into the session
         session["downloader"] = spectra_downloader
     except Exception as ex:
         response = {
