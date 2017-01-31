@@ -1,3 +1,7 @@
-eventlet
+spectra_downloader
 flask
+eventlet
 flask-socketio
+astropy
+numpy
+matplotlib
