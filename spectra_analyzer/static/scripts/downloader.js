@@ -219,6 +219,12 @@ $(document).ready(function () {
         downloadSpectra();
         setView(2);
     });
+    //add listener for select all button
+    $('#select-all-btn').click(function () {
+        $('select[name=spectra] option').each(function () {
+            $(this).prop('selected', true);
+        });
+    });
     //register socketio events
     socket.on("votable_parsed", function (response) {
         //render result table
