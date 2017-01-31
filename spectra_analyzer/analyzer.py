@@ -5,6 +5,11 @@ from astropy.io import fits
 import numpy
 import mlpy.wavelet as wave
 import matplotlib.pyplot as plt
+<< << << < HEAD
+== == == =
+import math
+>> >> >> > 4
+d918d5f7cc91a7800f166398bf7d2fc5daa8c23
 
 
 class SpectrumFileReader:
