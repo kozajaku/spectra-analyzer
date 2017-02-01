@@ -5,11 +5,12 @@ from .analyzer import Spectrum
 import os
 import time
 import urllib
+import click
 
 DEFAULT_DIRECTORY = "/tmp/spectra"
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'secret!'  # todo change
+app.config['SECRET_KEY'] = 'sometotalbrutalsecret'
 socketio = SocketIO(app)
 
 
@@ -345,5 +346,14 @@ def only_trans_changed(expected):
     emit("transformation_updated", spectrum.plot_reduced_spectrum(only_transformation=expected), namespace="/analyzer")
 
 
+@click.command()
+@click.option("--debug", is_flag=True, help="Setup debug flags for Flask application.")
+@click.option("--port", default=5000, help="TCP port of the web server.")
+@click.option("--host", default="127.0.0.1", help="The hostname to listen on.")
+def web(debug, port, host):
+    """Setup click command for starting the spectra-analyzer from console."""
+    socketio.run(app, debug=debug, port=port, host=host)
+
+
 def main():
-    socketio.run(app, debug=False)
+    web()
