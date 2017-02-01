@@ -23,7 +23,11 @@ Spectra analyzer tool requires **mlpy** for the continual wavelet transformation
 library is not published on PyPi (the one published there is the different package!). To install **mlpy**
 just follow the installation guide on `SourceForge <http://mlpy.sourceforge.net/docs/3.5/install.html>`_. Do not
 forget to install the **GSL** library together with header files or your compilation will fail. You can install
-this library on *nix systems using package managers (gsl-dev/gsl-devel).
+this library on Linux systems using package managers (gsl-dev/gsl-devel).
+
+Note that **mlpy** requires a specific version of **numpy** library. The specific version will be installed
+automatically when you follow next steps. The newer version of **numpy** library is currently not working with
+the latest version of **mlpy** library.
 
 Install Spectra analyzer
 ------------------------

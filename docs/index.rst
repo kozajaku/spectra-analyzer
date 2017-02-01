@@ -24,6 +24,7 @@ Contents
    :maxdepth: 2
 
    installation/index
+   usage/index
    testing/index
    documentation/index
    sources/index
