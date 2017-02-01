@@ -6,6 +6,7 @@ import numpy
 import mlpy.wavelet as wave
 import matplotlib.pyplot as plt
 
+
 class SpectrumFileReader:
     """Abstract class for individual readers. Every reader can read its own type
     of spectrum format."""
@@ -104,12 +105,14 @@ class Spectrum:
 
     @staticmethod
     def _plot_to_base64():
-        """Convert currently plotted figure into png image encoded as base64 string."""
+        """Convert currently plotted figure into png image encoded as base64 string. Also closes figure
+        after plotting to release memory."""
         buf = io.BytesIO()
         plt.savefig(buf, format="png")
         buf.seek(0)
         img = base64.b64encode(buf.getvalue()).decode("ascii")
         buf.close()
+        plt.close()
         return img
 
     def modify_parameters(self, freq0, wSize):
@@ -141,6 +144,15 @@ class Spectrum:
         plt.plot(self.spectrum)
         return self._plot_to_base64()
 
+    def plot_cwt(self):
+        """
+        Returns image representation of continuous wavelet transformation.
+        :return: PNG image encoded as Base64 string.
+        """
+        plt.figure(figsize=(15, 2))
+        plt.imshow(numpy.abs(self._transformation), aspect="auto")
+        return self._plot_to_base64()
+
     def plot_reduced_spectrum(self):
         """
         Do a wavelet transformation - dimension reduction method. Returns a png image of
@@ -149,8 +161,8 @@ class Spectrum:
         """
         # do "dog" wavelet transformation
         concatenated = numpy.concatenate((
-            self.transformation[:self.freq0], numpy.zeros((self.wSize, len(self.spectrum))),
-            self.transformation[self.freq0 + self.wSize:]))
+            self._transformation[:self.freq0], numpy.zeros((self.wSize, len(self.spectrum))),
+            self._transformation[self.freq0 + self.wSize:]))
         rec = wave.icwt(concatenated, dt=1, scales=self.scales, wf='dog', p=2)
         # normalize
         rec = (rec - min(rec)) / (max(rec) - min(rec))
