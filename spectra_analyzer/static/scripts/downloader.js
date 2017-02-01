@@ -3,7 +3,7 @@ $(document).ready(function () {
     var namespace = "/downloader";
     //connect to the socketio server
     var socket = io.connect(location.protocol + "//" + document.domain + ":" + location.port + namespace);
-    //setup socket events
+
     var parseSuccess = true;
     var datalinkAvailable;
     var spectraList;
@@ -227,11 +227,12 @@ $(document).ready(function () {
     });
     //register socketio events
     socket.on("votable_parsed", function (response) {
+        var link;
         //render result table
         if (response['success']) {
             parseSuccess = true;
             if (response['link_known']) {
-                var link = response['link'];
+                link = response['link'];
                 $('#resource-url').html(
                     $('<a>', {"href": link}).html(link)
                 );
@@ -260,7 +261,7 @@ $(document).ready(function () {
         } else {
             parseSuccess = false;
             if (response['link_known']) {
-                var link = response['link'];
+                link = response['link'];
                 $('#resource-url-fail').html(
                     $('<a>', {"href": link}).html(link)
                 );

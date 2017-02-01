@@ -1,3 +1,40 @@
+body {
+    margin: 0;
+}
+
+.content {
+    margin: 15px;
+}
+
+nav ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #333;
+}
+
+nav li {
+    float: left;
+}
+
+nav li a {
+    display: block;
+    color: white;
+    text-align: center;
+    padding: 14px 16px;
+    text-decoration: none;
+}
+
+/* Change the link color to #111 (black) on hover */
+nav li a:hover {
+    background-color: #111;
+}
+
+nav a.active {
+    background-color: #4CAF50;
+}
+
 .hidden {
     display: none;
 }
@@ -22,4 +59,68 @@
 
 select[name=spectra] {
     min-width: 200px;
+}
+
+button {
+    margin: 10px;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+table td, table th {
+    border: 1px solid #ddd;
+    text-align: left;
+    padding: 8px;
+}
+
+table tr:nth-child(even) {
+    background-color: #f2f2f2
+}
+
+table tr:hover {
+    background-color: #ddd;
+}
+
+table th {
+    padding-top: 12px;
+    padding-bottom: 12px;
+    background-color: #4CAF50;
+    color: white;
+}
+
+.frame {
+    border: 1px solid #444;
+    box-shadow: 5px 5px 5px #999;
+    margin-bottom: 15px;
+    margin-top: 10px;
+    padding: 20px;
+}
+
+.frame h2 {
+    margin-top: 0;
+}
+
+input, select {
+    margin-bottom: 10px
+}
+
+.type-column {
+    width: 20px;
+}
+
+#directory-listing tr {
+    cursor: pointer;
+}
+
+.progress {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+}
+
+.selected-row {
+    background-color: yellow !important;
 }
