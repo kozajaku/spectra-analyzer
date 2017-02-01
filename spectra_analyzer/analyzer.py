@@ -60,6 +60,16 @@ class FitsReader(SpectrumFileReader):
         return scidata
 
 
+class AscReader(SpectrumFileReader):
+    """Specific spectrum reader. ASC is simple file where rows contains
+    x and y values separated by two spaces."""
+
+    def _scidata(self, fits_file):
+        s = numpy.genfromtxt(fits_file, delimiter='  ')
+        s = s[:, 1]
+        return s
+
+
 class VotReader(SpectrumFileReader):
     pass
 
@@ -67,7 +77,8 @@ class VotReader(SpectrumFileReader):
 EXTENSION_MAPPING = {
     "fit": FitReader(),
     "fits": FitsReader(),
-    "vot": VotReader()
+    "vot": VotReader(),
+    "asc": AscReader()
 }
 
 
