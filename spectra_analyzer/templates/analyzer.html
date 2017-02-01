@@ -1,1 +1,63 @@
-analyzer
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Spectra analyzer</title>
+    <link rel="stylesheet" href="{{url_for('static', filename = 'css/design.css')}}">
+    <script type="text/javascript" src="//code.jquery.com/jquery-3.1.1.min.js"></script>
+    <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
+    <script type="text/javascript" src="{{url_for('static', filename = 'scripts/analyzer.js')}}"></script>
+</head>
+<body>
+<noscript>
+    <div class="nojs">This application does not work without JavaScript. Please turn your JavaScript on
+        and refresh the page.
+    </div>
+</noscript>
+<h1>Spectra analyzer</h1>
+<div class="spectrum-selection">
+    <p>Selected a spectrum on the file system for analyzing.</p>
+    <form action="javascript:void(0);">
+        <label for="spectrum-path">Spectrum path</label><br>
+        <input type="text" id="spectrum-path" placeholder="spectrum-path" size="110"><br>
+        <button id="follow-path">Load entered path</button>
+        <br>
+    </form>
+    <table>
+        <thead>
+        <tr>
+            <th>Type</th>
+            <th>Name</th>
+            <th>Last modified</th>
+            <th>Size</th>
+        </tr>
+        </thead>
+        <tbody id="directory-listing">
+        </tbody>
+    </table>
+</div>
+<img class="progress hidden"
+     src={{ url_for('static', filename = 'images/progress.gif') }}><br>
+<div class="file-invalid hidden">
+    <h2>Selected file has invalid spectrum format</h2>
+</div>
+<div class="file-analyze hidden">
+    <h2>Spectrum <span class="spectrum-name"></span></h2>
+    <p>Following image shows a plot of the selected spectrum.</p>
+    <img id="spectrum-plot">
+    <p>Following image shows an image representation of
+        continuous wavelet transformation.</p>
+    <img id="cwt-plot">
+    <p>Following image shows output of transformation applied on
+        the selected spectrum. You can adjust transformation parameters
+        and see the modification that the transformation does. Note
+        that parameters are dependent on each other. Increasing one
+        parameter decreases maximal possible value of the second one and
+        vice versa.</p>
+    <div class="sliders"></div>
+    <img class="progress-sliders hidden"
+         src={{ url_for('static', filename = 'images/progress.gif') }}><br>
+    <img id="transformation-plot">
+</div>
+</body>
+</html>

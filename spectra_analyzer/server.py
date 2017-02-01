@@ -2,7 +2,9 @@ from flask import Flask, render_template, session, request, redirect, url_for
 from flask_socketio import SocketIO, emit, join_room, leave_room, \
     close_room, rooms, disconnect
 from spectra_downloader import SpectraDownloader
-import eventlet
+from .analyzer import Spectrum
+import os
+import time
 
 DEFAULT_DIRECTORY = "/tmp/spectra"
 
@@ -188,22 +190,141 @@ def download_finished(sid):
     return callback
 
 
-@socketio.on('connect', namespace='/downloader')
+@socketio.on("connect", namespace="/downloader")
 def connect():
     """
-    This method is called whenever new socketio connection with server from client is initiated.
+    This function is called whenever new socketio connection with the server from client is initiated to the /downloader
+    namespace.
     """
-    print("Client connected: {}".format(request.sid))
+    # print("Client connected: {}".format(request.sid))
     directory = session.get("directory")
     if directory is None:
         session["directory"] = DEFAULT_DIRECTORY
 
 
-@socketio.on('disconnect', namespace='/downloader')
+@socketio.on("disconnect", namespace="/downloader")
 def disconnect():
-    """This method is called whenever the socketio connection with the server is terminated by the client."""
-    print("Client disconnected: {}".format(request.sid))
+    """This function is called whenever the socketio connection with the server is terminated by the client
+    to the /downloader namespace."""
+    # print("Client disconnected: {}".format(request.sid))
+    pass
 
 
-if __name__ == "__main__":
-    socketio.run(app, debug=True)
+def format_size(size):
+    """
+    Returns string representation of file size in human readable format (using kB, MB, GB, TB units)
+    :param size: Size of file in bytes.
+    :return: String representation of size with SI units.
+    """
+    if size < 1000:
+        return "{:d} B".format(size)
+    for unit in ["k", "M", "G"]:
+        size /= 1000.0
+        if size < 1000.0:
+            return "{:.2f} {}B".format(size, unit)
+    return "{:.2f} TB".format(size)
+
+
+def format_mtime(mtime):
+    """
+    Returns passed file modified time in human readable format.
+    :param mtime: Time from epoch representing the time of file modification.
+    :return: Human readable string representation of passed time.
+    """
+    return time.strftime("%H:%M:%S %d. %m. %Y", time.localtime(mtime))
+
+
+def serialize_path(path, selected=None):
+    """
+    Returns json serializable object that can be sent to the client. This object
+    represents one single directory that client decided to open. If a passed path
+    does represent a file and not a directory, the listed directory of the file is
+    returned and the specified file is marked as selected in the listing.
+    :param path: Filesystem path that client wants to list.
+    :param selected: Name of file in the directory specified by path argument that
+    should be marked as a selected one.
+    :return: Serializable dictionary.
+    """
+    path = os.path.abspath(path)  # normalize path
+    if os.path.isdir(path):
+        dirs = list()
+        files = list()
+        # append .. path
+        dirs.append({"is_file": False, "name": "..", "path": os.path.dirname(path)})
+        for name in os.listdir(path):
+            new_path = os.path.join(path, name)
+            if os.path.isdir(new_path):
+                dirs.append({"is_file": False, "name": name, "path": new_path})
+            elif os.path.isfile(new_path):
+                size = format_size(os.path.getsize(new_path))
+                mtime = format_mtime(os.path.getmtime(new_path))
+                files.append({
+                    "is_file": True,
+                    "name": name,
+                    "path": new_path,
+                    "size": size,
+                    "modified": mtime,
+                    "selected": selected == name
+                })
+        return {"path": path, "invalid": False, "directory": dirs + files}
+    elif os.path.isfile(path):
+        return serialize_path(*os.path.split(path))
+    else:
+        return {"path": path, "invalid": True}
+
+
+@socketio.on("connect", namespace="/analyzer")
+def connect():
+    """This function is called whenever new socketio connection with the server from client is initiated to the
+    /analyzer namespace. Client must be instantly informed about the current directory."""
+    path = session.get("directory", ".")
+    emit("directory_info", serialize_path(path), namespace="/analyzer")
+
+
+@socketio.on("change_path", namespace="/analyzer")
+def change_path(path):
+    """This function is called whenever user wants to change directory either by changing
+    path directly in the text box or by clicking to another directory in listing."""
+    serialized = serialize_path(path)
+    if not serialized["invalid"]:
+        session['directory'] = path;
+    emit("directory_info", serialized, namespace="/analyzer")
+
+
+@socketio.on("analyze_file", namespace="/analyzer")
+def analyze_file(file_path):
+    """This function is called by client when he selects a spectrum for analyzing."""
+    if not os.path.isfile(file_path):
+        res = {"invalid": True}
+    else:
+        spectrum = Spectrum.read_spectrum(file_path)
+        if spectrum is None:
+            res = {"invalid": True}
+        else:
+            session["spectrum"] = spectrum
+            res = {
+                "invalid": False,
+                "spectrum_img": spectrum.plot_spectrum(),
+                "freq0": spectrum.freq0,
+                "wSize": spectrum.wSize,
+                "scales": len(spectrum.scales),
+                "cwt_img": spectrum.plot_cwt(),
+                "transformation_img": spectrum.plot_reduced_spectrum(),
+                "file_name": os.path.basename(file_path)}
+
+    emit("file_analyzed", res, namespace="/analyzer")
+
+
+@socketio.on("slider_changed", namespace="/analyzer")
+def slider_changed(data):
+    """This function is called whenever client moves with one of
+    transformation parameter slider. It recounts transformation for
+    the specified parameters and returns newly plotted image to the user."""
+    freq0 = data['freq0']
+    wSize = data['wSize']
+    spectrum = session["spectrum"]
+    spectrum.modify_parameters(freq0, wSize)
+    emit("transformation_updated", spectrum.plot_reduced_spectrum(), namespace="/analyzer")
+
+def main():
+    socketio.run(app, debug=False)
