@@ -3,5 +3,5 @@ flask
 eventlet
 flask-socketio
 astropy
-numpy
+numpy==1.11.2
 matplotlib
