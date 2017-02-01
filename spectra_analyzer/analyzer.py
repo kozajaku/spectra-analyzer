@@ -160,18 +160,19 @@ class Spectrum:
         This method modifies transformation parameters saved in the class. It also
         provides boundary checks. If parameters are out of boundary, wSize parameter is adjusted to
         match correct settings.
-        :param freq0: Frequency shift parameter. This parameter bust be in range [0, len(scales) - wSize].
+        :param freq0: Frequency shift parameter. This parameter bust be in range [0, len(scales) - 1 - wSize].
         :param wSize: Window size parameter. This parameter must be in range [0, len(scales) - 1 - freq0].
         """
         sl = len(self.scales)
         if freq0 < 0:
             freq0 = 0
-        elif freq0 > sl:
-            freq0 = sl
+        elif freq0 >= sl:
+            freq0 = sl - 1
         if wSize < 0:
             wSize = 0
-        elif wSize > sl - 1 - freq0:
+        elif wSize >= sl - freq0:
             wSize = sl - 1 - freq0
+            wSize = 0 if wSize < 0 else wSize
         self.freq0 = freq0
         self.wSize = wSize
         # invalidate _rec
