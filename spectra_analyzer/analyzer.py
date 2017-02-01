@@ -1,10 +1,11 @@
 import os
 import io
 import base64
-from astropy.io import fits
+from astropy.io import fits, votable
 import numpy
 import mlpy.wavelet as wave
 import matplotlib.pyplot as plt
+import warnings
 
 
 class SpectrumFileReader:
@@ -74,7 +75,19 @@ class SimpleTextReader(SpectrumFileReader):
 
 
 class VotReader(SpectrumFileReader):
-    pass
+    """Specific spectrum reader. Uses astropy.io.votable API for fetching vot spectrum file
+    supported are both binary and text column based votables."""
+
+    def _scidata(self, file_path):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            vot = votable.parse(file_path)
+        table = vot.get_first_table()
+        data = table.array
+        detupled = numpy.zeros(shape=data.shape)
+        for i in range(data.shape[0]):
+            detupled[i] = data[i][1]
+        return detupled
 
 
 EXTENSION_MAPPING = {
@@ -83,7 +96,7 @@ EXTENSION_MAPPING = {
     "vot": VotReader(),
     "asc": SimpleTextReader("  "),
     "csv": SimpleTextReader(","),
-    "txt": SimpleTextReader("\t")
+    "txt": SimpleTextReader("\t"),
 }
 
 
