@@ -37,8 +37,8 @@ class FitReader(SpectrumFileReader):
     """Specific spectrum reader. Uses astropy.io.fits API for fetching FITS spectrum file
     in the image/fits (older) standard. This standard does NOT contain x spectrum values."""
 
-    def _scidata(self, fits_file):
-        hdulist = fits.open(fits_file)
+    def _scidata(self, file_path):
+        hdulist = fits.open(file_path)
         scidata = hdulist[0].data
         hdulist.close()
         return scidata
@@ -60,12 +60,15 @@ class FitsReader(SpectrumFileReader):
         return scidata
 
 
-class AscReader(SpectrumFileReader):
-    """Specific spectrum reader. ASC is simple file where rows contains
-    x and y values separated by two spaces."""
+class SimpleTextReader(SpectrumFileReader):
+    """Specific spectrum reader. File in simple text format
+    contains x and y on rows separated by a specific separator."""
 
-    def _scidata(self, fits_file):
-        s = numpy.genfromtxt(fits_file, delimiter='  ')
+    def __init__(self, separator):
+        self.separator = separator
+
+    def _scidata(self, file_path):
+        s = numpy.genfromtxt(file_path, delimiter=self.separator)
         s = s[:, 1]
         return s
 
@@ -78,7 +81,9 @@ EXTENSION_MAPPING = {
     "fit": FitReader(),
     "fits": FitsReader(),
     "vot": VotReader(),
-    "asc": AscReader()
+    "asc": SimpleTextReader("  "),
+    "csv": SimpleTextReader(","),
+    "txt": SimpleTextReader("\t")
 }
 
 
