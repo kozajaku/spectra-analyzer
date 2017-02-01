@@ -8,6 +8,36 @@
 <body>
 {% set page="home" %}
 {% include "navigation.html" %}
-index
+<div class="content">
+    <h1>Spectra analyzing tool</h1>
+    <p>
+        Welcome to the Home page of Spectra analyzing tool. With this tool you can download spectra
+        from virtual observatory archives using astronomical protocols SSAP and DataLink. You can
+        visualise downloaded spectra and interactively inspect the possibility of their
+        dimensionality reduction using method of continual wavelet transformation.
+    </p>
+    <p>
+        The tool currently supports following format of astronomical spectra for inspection:
+    <ul>
+        <li>.vot - VOTABLE tabledata encoded</li>
+        <li>.vot - VOTABLE binary encoded</li>
+        <li>.fit - image/fits format</li>
+        <li>.fits - application/fits format</li>
+        <li>.csv - comma separated values</li>
+        <li>.txt - tab separated values</li>
+        <li>.asc - two spaces separated values</li>
+    </ul>
+    The tool matches specific reader by matching spectrum file extensions. Please ensure
+    that your spectrum file for inspection has correctly set its extension.
+    </p>
+    <p>
+        Author: Jakub Koza<br>
+        GitHub repository: https://github.com/kozajaku/spectra-analyzer
+    </p>
+    <p>
+        To start working with tool continue either to <a href="/downloader">Downloader page</a>
+        or to <a href="/analyzer">Analyzer page</a>.
+    </p>
+</div>
 </body>
 </html>
