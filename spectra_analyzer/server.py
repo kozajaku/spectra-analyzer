@@ -324,7 +324,17 @@ def slider_changed(data):
     wSize = data['wSize']
     spectrum = session["spectrum"]
     spectrum.modify_parameters(freq0, wSize)
-    emit("transformation_updated", spectrum.plot_reduced_spectrum(), namespace="/analyzer")
+    emit("transformation_updated", spectrum.plot_reduced_spectrum(only_transformation=data['only-transformation']),
+         namespace="/analyzer")
+
+
+@socketio.on("only_transformation_changed", namespace="/analyzer")
+def only_trans_changed(expected):
+    """This function is called whenever client clicks on the checkbox - show only transformation.
+    The transformation plot must be replotted and returned to the client."""
+    spectrum = session["spectrum"]
+    emit("transformation_updated", spectrum.plot_reduced_spectrum(only_transformation=expected), namespace="/analyzer")
+
 
 def main():
     socketio.run(app, debug=False)

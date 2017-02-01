@@ -131,6 +131,7 @@ class Spectrum:
         self.freq0 = 0
         self.wSize = 5 if len(self.scales) > 5 else len(self.scales) - 1
         self._transformation = wave.cwt(spectrum, dt=1, scales=self.scales, wf='dog', p=2)
+        self._rec = None
 
     @staticmethod
     def _plot_to_base64():
@@ -143,6 +144,16 @@ class Spectrum:
         buf.close()
         plt.close()
         return img
+
+    def _recount_rec(self):
+        """This method recounts reduced spectrum and saves it as an instance attribute."""
+        # do "dog" wavelet transformation
+        concatenated = numpy.concatenate((
+            self._transformation[:self.freq0], numpy.zeros((self.wSize, len(self.spectrum))),
+            self._transformation[self.freq0 + self.wSize:]))
+        self._rec = wave.icwt(concatenated, dt=1, scales=self.scales, wf='dog', p=2)
+        # normalize
+        self._rec = (self._rec - min(self._rec)) / (max(self._rec) - min(self._rec))
 
     def modify_parameters(self, freq0, wSize):
         """
@@ -163,6 +174,8 @@ class Spectrum:
             wSize = sl - 1 - freq0
         self.freq0 = freq0
         self.wSize = wSize
+        # invalidate _rec
+        self._rec = None
 
     def plot_spectrum(self):
         """
@@ -182,21 +195,18 @@ class Spectrum:
         plt.imshow(numpy.abs(self._transformation), aspect="auto")
         return self._plot_to_base64()
 
-    def plot_reduced_spectrum(self):
+    def plot_reduced_spectrum(self, only_transformation=False):
         """
         Do a wavelet transformation - dimension reduction method. Returns a png image of
         the spectrum before and after transformation encoded in base64 format.
+        :param only_transformation: Specifies, that only transformation graph should be plotted.
+        If set as False (implicit) both graph (old and new spectrum) are plotted.
         :return: PNG image encoded as Base64 string.
         """
-        # do "dog" wavelet transformation
-        concatenated = numpy.concatenate((
-            self._transformation[:self.freq0], numpy.zeros((self.wSize, len(self.spectrum))),
-            self._transformation[self.freq0 + self.wSize:]))
-        rec = wave.icwt(concatenated, dt=1, scales=self.scales, wf='dog', p=2)
-        # normalize
-        rec = (rec - min(rec)) / (max(rec) - min(rec))
-        # plot transformed spectrum and old spectrum
+        if self._rec is None:
+            self._recount_rec()
         plt.figure(figsize=(15, 5))
-        plt.plot(rec)
-        plt.plot(self.spectrum, alpha=0.8)
+        plt.plot(self._rec)
+        if not only_transformation:
+            plt.plot(self.spectrum, alpha=0.8)
         return self._plot_to_base64()

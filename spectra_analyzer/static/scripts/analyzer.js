@@ -32,12 +32,30 @@ $(document).ready(function () {
         return $div;
     }
 
-    function notifySliderChanged(){
+    function createCheckbox(id, label, onchange) {
+        var $div = $('<div>');
+        $div.append($('<input>', {
+            'type': 'checkbox',
+            'id': id
+        }).change(function () {
+            onchange($(this).prop('checked'));
+        }));
+        $div.append(label);
+        return $div;
+    }
+
+    function notifySliderChanged() {
         //get values from sliders
         var freq0 = Number($('#freq0').val());
         var wSize = Number($('#wSize').val());
+        var onlyTrans = $('#only-transformation').prop('checked');
         showProgressSliders();
-        socket.emit('slider_changed', {'freq0': freq0, 'wSize': wSize});
+        socket.emit('slider_changed', {'freq0': freq0, 'wSize': wSize, 'only-transformation': onlyTrans});
+    }
+
+    function notifyOnlyTransformationChanged(val) {
+        showProgressSliders();
+        socket.emit('only_transformation_changed', val);
     }
 
     $('.sliders').append(createSlider('freq0', 'Frequency shift:', 0, 50, function (val) {
@@ -52,6 +70,9 @@ $(document).ready(function () {
         $('#freq0').prop('max', max);
         notifySliderChanged();
     }));
+    $('.sliders').append(createCheckbox('only-transformation', 'Show only transformation', function (val) {
+        notifyOnlyTransformationChanged(val);
+    }));
 
     function showProgress() {
         $('.progress').removeClass('hidden');
@@ -60,6 +81,7 @@ $(document).ready(function () {
     function hideProgress() {
         $('.progress').addClass('hidden');
     }
+
     function showProgressSliders() {
         $('.progress-sliders').removeClass('hidden');
     }
