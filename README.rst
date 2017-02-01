@@ -1,8 +1,31 @@
 Spectra analyzer
 ================
 
-Task
-----
+Welcome to the documentation of Spectra analyzer. This is a WebSocket based web application
+built on Flask and SocketIO API frameworks. You can use it to simply download spectra
+from virtual observatory archives using protocols SSAP and DataLink. You can also use this
+tool to inspect the spectra using dimension reduction method continual wavelet transformation.
+
+This tool is tightly coupled with the Spectra downloader tool that is capable of downloading
+spectra from virtual observatory archives using protocols SSAP and DataLink. Both repositories
+were created as a semestral project for subject MI-PYT at FIT CTU in Prague. For more information
+about Spectra downloader refer to its `repository <https://github.com/kozajaku/spectra-downloader>`_.
+
+Documentation
+-------------
+
+Documentation can be found online on `spectra-analyzer.readthedocs.io <http://spectra-analyzer.readthedocs.io/>`_ or
+you can build it manually by clonning the repository and executing::
+
+    cd docs
+    python3 -m pip install -r requirements.txt
+    make html
+
+Documentation is now created in ``docs/_build/html/``
+
+
+Semestral work task
+-------------------
 
 The aim of this work is to create a tool for analyzing a dimensionality reduction of a chosen astronomical spectrum.
 
