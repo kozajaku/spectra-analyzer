@@ -1,10 +1,10 @@
 from flask import Flask, render_template, session, request, redirect, url_for
-from flask_socketio import SocketIO, emit, join_room, leave_room, \
-    close_room, rooms, disconnect
+from flask_socketio import SocketIO, emit
 from spectra_downloader import SpectraDownloader
 from .analyzer import Spectrum
 import os
 import time
+import urllib
 
 DEFAULT_DIRECTORY = "/tmp/spectra"
 
@@ -197,9 +197,12 @@ def connect():
     namespace.
     """
     # print("Client connected: {}".format(request.sid))
-    directory = session.get("directory")
+    directory = request.cookies.get("last-directory")
     if directory is None:
-        session["directory"] = DEFAULT_DIRECTORY
+        directory = DEFAULT_DIRECTORY
+    else:
+        directory = urllib.parse.unquote(directory)
+    session["directory"] = directory
 
 
 @socketio.on("disconnect", namespace="/downloader")
@@ -277,7 +280,13 @@ def serialize_path(path, selected=None):
 def connect():
     """This function is called whenever new socketio connection with the server from client is initiated to the
     /analyzer namespace. Client must be instantly informed about the current directory."""
-    path = session.get("directory", ".")
+    path = session.get("directory")
+    if path is None:
+        path = request.cookies.get("last-directory")
+        if path is None:
+            path = "."
+        else:
+            path = urllib.parse.unquote(path)
     emit("directory_info", serialize_path(path), namespace="/analyzer")
 
 
@@ -287,7 +296,7 @@ def change_path(path):
     path directly in the text box or by clicking to another directory in listing."""
     serialized = serialize_path(path)
     if not serialized["invalid"]:
-        session['directory'] = path;
+        session["directory"] = path
     emit("directory_info", serialized, namespace="/analyzer")
 
 

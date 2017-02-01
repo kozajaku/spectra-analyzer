@@ -12,6 +12,10 @@ $(document).ready(function () {
         socket.emit('change_path', path);
     });
 
+    $.cookie = function (name, value) {
+        document.cookie = encodeURIComponent(name) + '=' + encodeURIComponent(value) + "; path=/";
+    };
+
     function createSlider(id, label, from, to, onchange) {
         var $div = $('<div>');
         $div.append($('<label>', {'for': id}).html(label)).append($('<br>'));
@@ -137,6 +141,7 @@ $(document).ready(function () {
             $tbody.append($tr);
         }
         $('#spectrum-path').val(loadedDirectoryPath);
+        $.cookie('last-directory', loadedDirectoryPath);
         registerRowClickEvents();
     }
 

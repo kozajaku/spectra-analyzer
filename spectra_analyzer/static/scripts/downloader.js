@@ -9,6 +9,10 @@ $(document).ready(function () {
     var spectraList;
     var downloadIndex = 0;
 
+    $.cookie = function (name, value) {
+        document.cookie = encodeURIComponent(name) + '=' + encodeURIComponent(value) + "; path=/";
+    };
+
     function showParseResult() {
         if (parseSuccess) {
             $('.parse-fail').hide();
@@ -154,6 +158,8 @@ $(document).ready(function () {
         }
         //get target directory
         message['directory'] = $('#directory').val();
+        //set directory as a cookie
+        $.cookie("last-directory", message['directory']);
         //prepare lines in a table
         downloadIndex = 0;
         $('#download-log-body').html('');
