@@ -2,7 +2,9 @@ $(document).ready(function () {
     //setup namespace for socketio
     var namespace = "/downloader";
     //connect to the socketio server
-    var socket = io.connect(location.protocol + "//" + document.domain + ":" + location.port + namespace);
+    var socket = io.connect(location.protocol + "//" + document.domain + ":" + location.port + namespace, {
+        "path": "/spectra-analyzer/socket.io"
+    });
 
     var parseSuccess = true;
     var datalinkAvailable;

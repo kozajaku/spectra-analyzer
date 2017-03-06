@@ -9,9 +9,24 @@ import click
 
 DEFAULT_DIRECTORY = "/tmp/spectra"
 
-app = Flask(__name__)
+
+class MyFlask(Flask):
+    PREFIX = '/spectra-analyzer'
+
+    def _prefix_rule(self, rule):
+        return MyFlask.PREFIX + rule
+
+    def add_url_rule(self, rule, endpoint=None, view_func=None, **options):
+        prefixed_rule = self._prefix_rule(rule)
+        super().add_url_rule(prefixed_rule,
+                             endpoint=endpoint,
+                             view_func=view_func,
+                             **options)
+
+
+app = MyFlask(__name__)
 app.config['SECRET_KEY'] = 'sometotalbrutalsecret'
-socketio = SocketIO(app)
+socketio = SocketIO(app, path='/spectra-analyzer/socket.io')
 
 
 # flask route specification

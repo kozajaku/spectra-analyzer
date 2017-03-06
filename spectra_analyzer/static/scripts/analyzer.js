@@ -2,7 +2,9 @@ $(document).ready(function () {
     //setup namespace for socketio
     var namespace = "/analyzer";
     //connect to socketio server
-    var socket = io.connect(location.protocol + "//" + document.domain + ":" + location.port + namespace);
+    var socket = io.connect(location.protocol + "//" + document.domain + ":" + location.port + namespace, {
+        "path": "/spectra-analyzer/socket.io"
+    });
     var loadedDirectoryPath = "";
     var loadedDirectory;
     var scales;
