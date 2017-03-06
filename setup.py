@@ -28,7 +28,7 @@ setup(
         ],
     },
     install_requires=['spectra_downloader', 'click', 'flask', 'eventlet', 'flask-socketio',
-                      'astropy', 'numpy==1.11.2', 'matplotlib'],
+                      'astropy', 'numpy==1.11.2', 'matplotlib', 'scipy'],
     setup_requires=['pytest-runner'],
     tests_require=['pytest'],
 )

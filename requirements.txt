@@ -6,3 +6,4 @@ flask-socketio
 astropy
 numpy==1.11.2
 matplotlib
+scipy
