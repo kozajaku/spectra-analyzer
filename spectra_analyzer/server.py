@@ -19,6 +19,12 @@ socketio = SocketIO(app)
 @app.route("/")
 def index():
     """Index page shows welcome message and menu that guides client to spectra downloader and spectra analyzer tool."""
+    return redirect(url_for('home'))
+
+
+@app.route("/home")
+def home():
+    """Expanded index page"""
     return render_template('index.html', async_mode=socketio.async_mode)
 
 
