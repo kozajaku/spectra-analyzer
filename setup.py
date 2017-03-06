@@ -25,6 +25,7 @@ setup(
     entry_points={
         'console_scripts': [
             'spectra_analyzer = spectra_analyzer.server:main',
+            'spectra-analyzer = spectra_analyzer.server:main'
         ],
     },
     install_requires=['spectra_downloader', 'click', 'flask', 'eventlet', 'flask-socketio',
