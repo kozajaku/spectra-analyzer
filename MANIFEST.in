@@ -1,3 +1,7 @@
 include LICENSE
+recursive-include spectra_analyzer/templates *
+recursive-include spectra_analyzer/static *
 recursive-include tests *
 recursive-exclude * __pycache__
+recursive-exclude * *.pyc
+recursive-exclude * *.pyo
