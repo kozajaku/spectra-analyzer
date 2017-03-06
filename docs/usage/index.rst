@@ -7,10 +7,14 @@ To start the Spectra analyzer tool simply execute in the console::
 
 or::
 
+    spectra-analyzer
+
+or::
+
     python -m spectra_analyzer
 
 The tool will start HTTP server listening implicitly on localhost with port 5000. You simple
-have to open your favourite web browser and add http://127.0.0.1:5000 as your URL address. You can
+have to open your favourite web browser and add http://127.0.0.1:5000/spectra-analyzer as your URL address. You can
 also change hostname and port parameters::
 
     spectra_analyzer --host 0.0.0.0 --port 6789
